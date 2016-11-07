@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//scalastyle:off
+
 package org.apache.spark.mllib.optimization
 
 import breeze.linalg.{norm, DenseVector => BDV}
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.internal.Logging
 import org.apache.spark.mllib.linalg.{DenseVector, Vector, Vectors}
@@ -27,14 +26,14 @@ import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Class used to solve an optimization problem using Gradient Descent.
+ * Class used to solve an optimization problem using Gradient Descent.
   *
   * @param gradient Gradient function to be used.
   * @param updater Updater to be used to update weights after every iteration.
   */
 class AdaGradientDescent private[spark] (
                                           private var gradient: Gradient,
-                                          private var updater: AdamUpdater)
+                                          private var updater: AdaUpdater)
   extends Optimizer with Logging {
 
   private var learningRate: Double = 1.0
@@ -119,7 +118,7 @@ class AdaGradientDescent private[spark] (
     * The updater is responsible to perform the update from the regularization term as well,
     * and therefore determines what kind or regularization is used, if any.
     */
-  def setUpdater(updater: AdamUpdater): this.type = {
+  def setUpdater(updater: AdaUpdater): this.type = {
     this.updater = updater
     this
   }
@@ -150,9 +149,9 @@ class AdaGradientDescent private[spark] (
 }
 
 /**
-  * :: DeveloperApi ::
-  * Top-level method to run gradient descent.
-  */
+ * :: DeveloperApi ::
+ * Top-level method to run gradient descent.
+ */
 @DeveloperApi
 object AdaGradientDescent extends Logging {
   /**
@@ -182,7 +181,7 @@ object AdaGradientDescent extends Logging {
   def runMiniBatch(
                        data: RDD[(Double, Vector)],
                        gradient: Gradient,
-                       updater: AdamUpdater,
+                       updater: AdaUpdater,
                        learningRate: Double,
                        numIterations: Int,
                        regParam: Double,
@@ -222,16 +221,17 @@ object AdaGradientDescent extends Logging {
     // Initialize weights as a column vector
     var weights: Vector = Vectors.dense(initialWeights.toArray)
     val n = weights.size
-    var m: Vector = Vectors.zeros(n)
-    var v = Vectors.zeros(n)
 
+    var m = Vectors.zeros(n)
+    var v = Vectors.zeros(n)
     var beta1Pow = 1.0
     var beta2Pow = 1.0
 
+    var accum = Vectors.zeros(n)
     var regVal = 0.0
     var converged = false // indicates whether converged based on convergenceTol
     var i = 1
-    val ss = data.partitions.size
+
     while (!converged && i <= numIterations) {
       val bcWeights = data.context.broadcast(weights)
       // Sample a subset (fraction miniBatchFraction) of the total data
@@ -253,17 +253,27 @@ object AdaGradientDescent extends Logging {
           * lossSum is computed using the weights from the previous iteration
           * and regVal is the regularization value computed in the previous iteration as well.
           */
-        val tt = Vectors.fromBreeze(gradientSum / miniBatchSize.toDouble)
         stochasticLossHistory += lossSum / miniBatchSize + regVal
 
-        val update = updater.compute( weights, Vectors.fromBreeze(gradientSum / miniBatchSize.toDouble),
-          m, v, beta1Pow, beta2Pow, i, regParam) // in a while loop, update the weight current batch of data
-        weights = update._1
-        m = update._2
-        v = update._3
-        beta1Pow = update._4
-        beta2Pow = update._5
-        regVal = update._6
+        updater match {
+          case _: AdamUpdater =>
+            val update = updater.asInstanceOf[AdamUpdater].compute(
+              weights, Vectors.fromBreeze(gradientSum / miniBatchSize.toDouble),
+              m, v, beta1Pow, beta2Pow, i, regParam)
+            weights = update._1
+            m = update._2
+            v = update._3
+            beta1Pow = update._4
+            beta2Pow = update._5
+            regVal = update._6
+          case _: AdagradUpdater =>
+            val update = updater.asInstanceOf[AdagradUpdater].compute(
+              weights, Vectors.fromBreeze(gradientSum / miniBatchSize.toDouble),
+              accum, learningRate, i, regParam)
+            weights = update._1
+            accum = update._2
+            regVal = update._3
+        }
 
         previousWeights = currentWeights
         currentWeights = Some(weights)
@@ -290,7 +300,7 @@ object AdaGradientDescent extends Logging {
   def runMiniBatch(
                        data: RDD[(Double, Vector)],
                        gradient: Gradient,
-                       updater: AdamUpdater,
+                       updater: AdaUpdater,
                        learningRate: Double,
                        numIterations: Int,
                        regParam: Double,

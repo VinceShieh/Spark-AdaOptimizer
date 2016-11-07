@@ -18,20 +18,20 @@ package org.apache.spark.mllib.optimization
 
 import scala.math._
 
-import breeze.linalg.{axpy => brzAxpy, norm => brzNorm, Vector => BV}
-
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 
+trait AdaUpdater extends Serializable {
+  val epsilon = 1e-8
+}
 /**
  * :: DeveloperApi ::
- * A simple Adam updater for gradient descent *without* any regularization.
+ * Adam updater for gradient descent with L2 regularization.
  */
 @DeveloperApi
-class AdamUpdater extends Serializable {
+class AdamUpdater extends AdaUpdater {
   private var beta1: Double = 0.9
   private var beta2: Double = 0.999
-  private val epsilon = 1e-8
 
   def compute(
                weightsOld: Vector,
@@ -53,5 +53,29 @@ class AdamUpdater extends Serializable {
     val myWeight = weightsOld.asBreeze - decayRate * (mc :/ (sqv + epsilon))
     (Vectors.fromBreeze(myWeight), Vectors.fromBreeze(m), Vectors.fromBreeze(v),
       beta1power, beta2power, 0)
+  }
+}
+
+/**
+ * :: DeveloperApi ::
+ * A simple AdaGrad updater for gradient descent *without* any regularization.
+ * Uses a step-size decreasing with the square root of the number of iterations.
+ * accum += grad * grad
+ * var -= lr * grad * (1 / sqrt(accum))
+ */
+@DeveloperApi
+class AdagradUpdater extends AdaUpdater {
+
+  def compute(
+               weightsOld: Vector,
+               gradient: Vector,
+               accumOld: Vector,
+               learningRate: Double,
+               iter: Int,
+               regParam: Double): (Vector, Vector, Double) = {
+    val accum = accumOld.asBreeze + (gradient.asBreeze :* gradient.asBreeze)
+    val sqrtHistGrad = accum.map(k => sqrt(k + epsilon))
+    val Weights = weightsOld.asBreeze - learningRate * (gradient.asBreeze :/ sqrtHistGrad)
+    (Vectors.fromBreeze(Weights), Vectors.fromBreeze(accum), 0)
   }
 }

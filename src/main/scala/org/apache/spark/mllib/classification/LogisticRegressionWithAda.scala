@@ -35,7 +35,7 @@ import org.apache.spark.storage.StorageLevel
 /**
  * Train a classification model for Binary Logistic Regression.
  */
-@Since("0.8.0")
+@Since("2.1.0")
 class LogisticRegressionWithAda private[mllib] (
                                                  private var stepSize: Double,
                                                  private var numIterations: Int,
@@ -58,8 +58,7 @@ class LogisticRegressionWithAda private[mllib] (
     * Construct a LogisticRegression object with default parameters: {stepSize: 1.0,
     * numIterations: 100, regParm: 0.01, miniBatchFraction: 1.0}.
     */
-  @Since("0.8.0")
-  @deprecated("Use ml.classification.LogisticRegression or LogisticRegressionWithLBFGS", "2.0.0")
+  @Since("2.1.0")
   def this() = this(1.0, 100, 0.01, 1.0)
 
   override protected[mllib] def createModel(weights: Vector, intercept: Double) = {
@@ -71,7 +70,7 @@ class LogisticRegressionWithAda private[mllib] (
   * Top-level methods for calling Logistic Regression.
   * NOTE: Labels used in Logistic Regression should be {0, 1}
   */
-@Since("0.8.0")
+@Since("2.1.0")
 @deprecated("Use ml.classification.LogisticRegression or LogisticRegressionWithLBFGS", "2.0.0")
 object LogisticRegressionWithAda {
   // NOTE(shivaram): We use multiple train methods instead of default arguments to support
@@ -91,7 +90,7 @@ object LogisticRegressionWithAda {
     * @param initialWeights Initial set of weights to be used. Array should be equal in size to
     *        the number of features in the data.
     */
-  @Since("1.0.0")
+  @Since("2.1.0")
   def train(
              input: RDD[LabeledPoint],
              numIterations: Int,
@@ -114,7 +113,7 @@ object LogisticRegressionWithAda {
 
     * @param miniBatchFraction Fraction of data to be used per iteration.
     */
-  @Since("1.0.0")
+  @Since("2.1.0")
   def train(
              input: RDD[LabeledPoint],
              numIterations: Int,
@@ -136,7 +135,7 @@ object LogisticRegressionWithAda {
     * @param numIterations Number of iterations of gradient descent to run.
     * @return a LogisticRegressionModel which has the weights and offset from training.
     */
-  @Since("1.0.0")
+  @Since("2.1.0")
   def train(
              input: RDD[LabeledPoint],
              numIterations: Int,
@@ -154,7 +153,7 @@ object LogisticRegressionWithAda {
     * @param numIterations Number of iterations of gradient descent to run.
     * @return a LogisticRegressionModel which has the weights and offset from training.
     */
-  @Since("1.0.0")
+  @Since("2.1.0")
   def train(
              input: RDD[LabeledPoint],
              numIterations: Int): LogisticRegressionModel = {
